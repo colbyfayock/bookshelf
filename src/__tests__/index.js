@@ -1,58 +1,40 @@
-import ReactDOM from 'react-dom'
-import {waitForElementToBeRemoved, screen, within} from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import {buildUser} from 'test/generate'
+import {screen, prettyDOM} from '@testing-library/react'
 
 beforeAll(() => {
-  document.body.focus()
+  const root = document.createElement('div')
+  root.id = 'root'
+  document.body.append(root)
 })
 
-test('can login and use the book search', async () => {
-  // setup
-  const div = document.createElement('div')
-  div.setAttribute('id', 'root')
-  document.body.appendChild(div)
+test('renders the app', () => {
   require('../index')
 
-  await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
+  screen.getByTitle('Bookshelf')
+  screen.getByRole('heading', {name: /Bookshelf/i})
+  screen.getByRole('button', {name: /Login/i})
+  screen.getByRole('button', {name: /Register/i})
 
-  const user = buildUser()
+  const cssEl = document.querySelector('[css]')
+  expect(
+    cssEl,
+    `
+At least one element has an attribute called "css". This means that emotion did not compile the prop correctly.
 
-  userEvent.click(screen.getByRole('button', {name: /register/i}))
+Make sure to include this at the top of the file:
 
-  const modal = within(screen.getByRole('dialog'))
-  await userEvent.type(modal.getByLabelText(/username/i), user.username)
-  await userEvent.type(modal.getByLabelText(/password/i), user.password)
+/** @jsx jsx */
+/** @jsxFrag React.Fragment */
+import {jsx} from '@emotion/core'
 
-  userEvent.click(modal.getByRole('button', {name: /register/i}))
 
-  await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
+Here's the element that has the css attribute that wasn't compiled:
 
-  const discoverLink = screen.getAllByRole('link', {name: /discover/i})[0]
-  discoverLink.focus()
-  userEvent.click(discoverLink)
-
-  const searchInput = screen.getByPlaceholderText(/search/i)
-  await userEvent.type(searchInput, 'voice of war')
-
-  userEvent.click(screen.getByLabelText(/search/i))
-  await waitForElementToBeRemoved(() => screen.getAllByLabelText(/loading/i))
-
-  userEvent.click(screen.getByText(/voice of war/i))
-
-  expect(window.location.href).toMatchInlineSnapshot(
-    `"http://localhost/book/B084F96GFZ"`,
-  )
+${prettyDOM(cssEl)}
+    `.trim(),
+  ).toBeNull()
 
   expect(
-    await screen.findByText(/to the west, a sheltered girl/i),
-  ).toBeInTheDocument()
-
-  userEvent.click(screen.getByRole('button', {name: /logout/i}))
-
-  expect(searchInput).not.toBeInTheDocument()
-
-  // cleanup
-  ReactDOM.unmountComponentAtNode(div)
-  document.body.removeChild(div)
+    document.body.innerHTML,
+    `None of your elements are styled by emotion. Make sure to render a styled component and use the css prop.`,
+  ).toContain('class="css-')
 })
