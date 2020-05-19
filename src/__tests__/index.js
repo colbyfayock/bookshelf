@@ -1,58 +1,54 @@
-import ReactDOM from 'react-dom'
-import {waitForElementToBeRemoved, screen, within} from '@testing-library/react'
+import * as rtl from '@testing-library/react'
+import {screen} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {buildUser} from 'test/generate'
 
+// TODO: open an issue on DOM Testing Library to make this built-in...
+async function waitForElementToBeRemoved(...args) {
+  try {
+    await rtl.waitForElementToBeRemoved(...args)
+  } catch (error) {
+    rtl.screen.debug()
+    throw error
+  }
+}
+
 beforeAll(() => {
+  const root = document.createElement('div')
+  root.id = 'root'
+  document.body.append(root)
   document.body.focus()
 })
 
 test('can login and use the book search', async () => {
-  // setup
-  const div = document.createElement('div')
-  div.setAttribute('id', 'root')
-  document.body.appendChild(div)
   require('../index')
-
-  await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
 
   const user = buildUser()
 
+  // for the extra credit
+  const loading = screen.queryByLabelText(/loading/i)
+  if (loading) {
+    await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
+  }
+
   userEvent.click(screen.getByRole('button', {name: /register/i}))
+  await userEvent.type(screen.getByLabelText(/username/i), user.username)
+  await userEvent.type(screen.getByLabelText(/password/i), user.password)
 
-  const modal = within(screen.getByRole('dialog'))
-  await userEvent.type(modal.getByLabelText(/username/i), user.username)
-  await userEvent.type(modal.getByLabelText(/password/i), user.password)
-
-  userEvent.click(modal.getByRole('button', {name: /register/i}))
+  userEvent.click(screen.getByRole('button', {name: /register/i}))
 
   await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
 
-  const discoverLink = screen.getAllByRole('link', {name: /discover/i})[0]
-  discoverLink.focus()
-  userEvent.click(discoverLink)
-
   const searchInput = screen.getByPlaceholderText(/search/i)
-  await userEvent.type(searchInput, 'voice of war')
+  userEvent.type(searchInput, 'voice of war')
 
-  userEvent.click(screen.getByLabelText(/search/i))
-  await waitForElementToBeRemoved(() => screen.getAllByLabelText(/loading/i))
-
-  userEvent.click(screen.getByText(/voice of war/i))
-
-  expect(window.location.href).toMatchInlineSnapshot(
-    `"http://localhost/book/B084F96GFZ"`,
-  )
-
-  expect(
-    await screen.findByText(/to the west, a sheltered girl/i),
-  ).toBeInTheDocument()
+  const searchIcon = screen.getByLabelText(/search/i)
+  searchIcon.closest('button').focus()
+  userEvent.click(searchIcon)
+  await waitForElementToBeRemoved(() => screen.getByLabelText(/loading/i))
+  expect(screen.getByText(/voice of war/i)).toBeInTheDocument()
 
   userEvent.click(screen.getByRole('button', {name: /logout/i}))
 
   expect(searchInput).not.toBeInTheDocument()
-
-  // cleanup
-  ReactDOM.unmountComponentAtNode(div)
-  document.body.removeChild(div)
 })
