@@ -9,8 +9,6 @@ import {buildUser} from './generate'
 import * as usersDB from './data/users'
 import * as booksDB from './data/books'
 
-jest.mock('context/auth-context')
-
 const queryConfig = {
   retry: 0,
   useErrorBoundary: true,
